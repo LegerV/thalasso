@@ -60,9 +60,13 @@ LIC_FILES_CHKSUM = "file://${WORKDIR}/COPYING.GPL;md5=751419260aa954499f7abaabaa
 # tree if you do not want to build from Linus' tree.
 SRC_URI = "https://git.xenomai.org/xenomai-3.git/snapshot/xenomai-3-3.0.3.tar.bz2;name=xenomai \
            https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.1.18.tar.gz;name=kernel \
-           file://defconfig \
-           file://COPYING.GPL \
-           file://cfg/virtio"
+           file://COPYING.GPL "
+
+SRC_URI_append_qemu_x86-64 = " file://arch/x86/defconfig"
+SRC_URI_append_x86-64 = " file://arch/x86/defconfig"
+SRC_URI_append_qemu_arm = " file://arch/arm/defconfig"
+SRC_URI_append_arm = " file://arch/arm/defconfig"
+SRC_URI_append_qemuall = " file://cfg/virtio"
 
 SRC_URI[kernel.sha256sum] = "cf887937742d2b6a167b0dd56152f8271914caa5108868b29d16e212a8e09aae"
 SRC_URI[xenomai.sha256sum] = "2770163240bd8aa957a7ab38ee2d83c0cd4c25297578e1de00ca6df382f0f62d"
@@ -75,7 +79,10 @@ LINUX_VERSION_EXTENSION_append = "-thalasso"
 # Modify SRCREV to a different commit hash in a copy of this recipe to
 # build a different release of the Linux kernel.
 # tag: v4.2 64291f7db5bd8150a74ad2036f1037e6a0428df2
-SRCREV_machine="64291f7db5bd8150a74ad2036f1037e6a0428df2"
+#SRCREV_machine="64291f7db5bd8150a74ad2036f1037e6a0428df2"
+SRCREV_machine="83fdace666f72dbfc4a7681a04e3689b61dae3b9"
+#SRCREV_machine="007f4f8ccbda6c5c3de5133ef39324b605f0e074"
+
 
 PV = "${LINUX_VERSION}+xenomai"
 
@@ -86,4 +93,19 @@ COMPATIBLE_MACHINE = "qemux86-64|qemuarm"
 do_validate_branches() {
 }
 
-KERNEL_FEATURES_append_qemuall="cfg/virtio"
+do_kernel_metadata_prepend(){
+find ${WORKDIR}/arch -name defconfig -exec cp {} ${WORKDIR} \;
+}
+
+do_configure_prepend(){
+XENODIR=$(find ${WORKDIR} -maxdepth 1 -name "xenomai-3*")
+LINUXDIR=$(find ${WORKDIR} -maxdepth 1 -name "linux-4.1.18")
+echo ${WORKDIR}
+echo $XENODIR $LINUXDIR
+cp $LINUXDIR/include/linux/compiler-gcc5.h $LINUXDIR/include/linux/compiler-gcc6.h
+$XENODIR/scripts/prepare-kernel.sh --linux=$LINUXDIR --ipipe=$XENODIR/kernel/cobalt/arch/x86/patches/ipipe-core-4.1.18-${ARCH}* --arch=${ARCH}
+}
+
+KERNEL_FEATURES_append_qemuall=" ${WORKDIR}/cfg/virtio"
+
+addtask do_configure_preprend before do_kernel_configcheck
